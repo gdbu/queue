@@ -1,5 +1,7 @@
 package queue
 
+import "sync"
+
 // New returns a new Queue
 func New(threads, length int) *Queue {
 	return NewWithWriter(threads, length, stderrWriter)
@@ -19,6 +21,8 @@ type Queue struct {
 	j jobs
 
 	w PanicWriter
+
+	closer sync.Once
 }
 
 func (q *Queue) spawnThreads(threads int) {
@@ -33,4 +37,15 @@ func (q *Queue) New(js ...Job) {
 	for _, j := range js {
 		q.j <- j
 	}
+}
+
+// Close will close the queue
+func (q *Queue) Close() (err error) {
+	q.closer.Do(func() {
+		close(q.j)
+		q.j = nil
+		q.w = nil
+	})
+
+	return
 }
